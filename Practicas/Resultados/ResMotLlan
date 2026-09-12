@@ -1,0 +1,53 @@
+# Evidencias y Resultados de la Práctica: Control de Motor CC con L293D
+
+Este documento reúne las evidencias físicas, capturas de pantalla y registros de funcionamiento obtenidos durante las pruebas de validación del circuito de control bidireccional y de velocidad para el motor de corriente continua (CC), controlado mediante un **Arduino UNO R4 WiFi** y el driver **L293D**.
+
+---
+
+## 1. Verificación del Monitor Serie (Terminal a 115200 bps)
+
+Se validó la respuesta del sistema en tiempo real a través del Monitor Serie configurado a **115200 baudios**. La rutina de lectura de cadenas procesó correctamente cada instrucción sin perder caracteres ni presentar latencia apreciable.
+
+### Comandos Probados y Respuesta Observada
+
+| Comando | Acción Ejecutada en Pines | Estado del Motor / Respuesta Observada | Estado |
+| :--- | :--- | :--- | :---: |
+| **`ADELANTE`** | `IN3` = HIGH, `IN4` = LOW | Giro en sentido horario | **OK** |
+| **`RETROCEDE`** | `IN3` = LOW, `IN4` = HIGH | Inversión inmediata a sentido antihorario | **OK** |
+| **`LENTO`** | `PWM` (Pin 3) = 100 (~40%) | Reducción de RPM, movimiento suave y sostenido | **OK** |
+| **`MEDIO`** | `PWM` (Pin 3) = 180 (~70%) | Incremento de velocidad y torque medio | **OK** |
+| **`RAPIDO`** | `PWM` (Pin 3) = 255 (100%) | Velocidad y torque máximos de la línea de 12V | **OK** |
+| **`PARA`** | `IN3` = LOW, `IN4` = LOW, `EN` = 0 | Freno total del motor | **OK** |
+
+> **Evidencia Visual:**  
+>![Diagrama del Circuito](../Diagrama/MotorRuedaImagen2.jpeg)
+
+
+---
+
+## 2. Ensamble y Montaje Físico
+
+El montaje se realizó sobre protoboard aplicando estándares de cableado estructurado para circuitos de potencia y lógica:
+
+1. **Ubicación del L293D:** Se insertó sobre el canal central del protoboard para optimizar la disipación térmica y facilitar el ruteo de señales por ambos lados del CI.
+2. **Plano de Tierra Unificado (GND):** Se interconectaron las tierras del Arduino UNO R4 WiFi, la fuente de alimentación externa y los pines centrales del L293D (pines 4, 5, 12 y 13), eliminando ruidos eléctricos e interferencias.
+3. **Alimentación de Potencia (12V):** Se conectó la línea de 12V proveniente del cable amarillo de la fuente de poder directamente al **Pin 8 (VCC2)** del driver.
+
+### Fotos del Circuito
+
+* **Vista General del Circuito:** `![Armado Físico en Protoboard](Fotos_Circuito/Armado_Fisico_Protoboard.jpg)`
+* **Conexión de la Fuente de 12V:** `![Conexión de Potencia 12V](Fotos_Circuito/Conexion_Fuente_12V.jpg)`
+
+---
+
+## 3. Comportamiento Térmico y Eléctrico
+
+* **Estabilidad del Microcontrolador:** A diferencia del uso de baterías de 9V convencionales, la alimentación dedicada de 12V para el motor evitó reinicios inesperados (*brown-outs*) en la placa Arduino UNO R4 WiFi durante los picos de arranque del motor.
+* **Torque Sostenido:** El motor mantuvo la fuerza necesaria incluso al conmutar entre los estados de `LENTO` y `RAPIDO`, confirmando la efectividad del control por ancho de pulso (PWM).
+
+---
+
+## 4. Evidencia en Video
+
+El video de demostración muestra el cambio de sentido de giro y la variación gradual de velocidad al enviar las instrucciones desde la terminal:
+
