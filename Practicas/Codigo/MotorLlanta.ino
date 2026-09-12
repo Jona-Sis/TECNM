@@ -1,84 +1,99 @@
-// Definición de pines para el Canal B del L293D
-const int ENB = 3; // Activar 3/4 (PWM para velocidad)
-const int IN3 = 4; // Entrada 3 (Dirección)
-const int IN4 = 5; // Entrada 4 (Dirección)
+#include <WiFiS3.h>
 
-// Variables de estado
-int velocidad = 255;              // Velocidad inicial (Máxima 0-255)
-String estadoDireccion = "PARA";  // Estado actual
+// Credenciales Wi-Fi (Sustituir con credenciales propias)
+const char ssid[] = "TU_RED_WIFI";
+const char pass[] = "TU_CONTRASEÑA_WIFI";
+
+WiFiServer server(80);
+
+// Pines de control para Canal B
+const int PIN_ENB = 3;  // PWM Velocidad a ENB
+const int PIN_IN3 = 4;  // Dirección 1 a IN3
+const int PIN_IN4 = 5;  // Dirección 2 a IN4
+
+// Variables de estado dinámico
+int velocidadActual = 200; // Velocidad inicial (MEDIO por defecto)
+bool enAvanza = true;       // Sentido de giro (true = Avanza, false = Retrocede)
 
 void setup() {
-  pinMode(ENB, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
+  Serial.begin(115200);
 
-  Serial.begin(9600);
-  
-  // Motor apagado al arrancar
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENB, 0);
+  pinMode(PIN_ENB, OUTPUT);
+  pinMode(PIN_IN3, OUTPUT);
+  pinMode(PIN_IN4, OUTPUT);
 
-  Serial.println("--- Control de Motor Listo ---");
-  Serial.println("Comandos: ADELANTE | RETROCEDE | PARA | LENTO | MEDIO | RAPIDO");
+  // Motor apagado al inicio
+  analogWrite(PIN_ENB, 0);
+  digitalWrite(PIN_IN3, LOW);
+  digitalWrite(PIN_IN4, LOW);
+
+  Serial.print("Conectando a Wi-Fi");
+  WiFi.begin(ssid, pass);
+
+  while (WiFi.status() != WL_CONNECTED || WiFi.localIP() == IPAddress(0, 0, 0, 0)) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  server.begin();
+  Serial.println("\n¡Servidor Web Activo!");
+  Serial.print("IP asignada para la App: ");
+  Serial.println(WiFi.localIP());
 }
 
 void loop() {
-  if (Serial.available() > 0) {
-    String comando = Serial.readStringUntil('\n');
-    comando.trim();
-    comando.toUpperCase();
+  WiFiClient client = server.available();
+  if (client) {
+    String request = client.readStringUntil('\r');
+    client.flush();
 
-    if (comando == "ADELANTE") {
-      estadoDireccion = "ADELANTE";
-      aplicarMovimiento();
-      Serial.println("-> Motor: ADELANTE");
+    Serial.print("Comando de voz recibido: ");
+    Serial.println(request);
+
+    // --- COMANDOS DE DIRECCIÓN Y FRENO ---
+    if (request.indexOf("/PARA") != -1) {
+      Serial.println("-> [VOZ] PARAR MOTOR");
+      analogWrite(PIN_ENB, 0);
+      digitalWrite(PIN_IN3, LOW);
+      digitalWrite(PIN_IN4, LOW);
     } 
-    else if (comando == "RETROCEDE") {
-      estadoDireccion = "RETROCEDE";
-      aplicarMovimiento();
-      Serial.println("-> Motor: RETROCEDIENDO");
+    else if (request.indexOf("/AVANZA") != -1) {
+      Serial.println("-> [VOZ] AVANZAR (Sentido Horario)");
+      enAvanza = true;
+      digitalWrite(PIN_IN3, HIGH);
+      digitalWrite(PIN_IN4, LOW);
+      analogWrite(PIN_ENB, velocidadActual);
     } 
-    else if (comando == "PARA") {
-      estadoDireccion = "PARA";
-      aplicarMovimiento();
-      Serial.println("-> Motor: DETENIDO");
+    else if (request.indexOf("/RETROCEDE") != -1) {
+      Serial.println("-> [VOZ] RETROCEDER (Sentido Antihorario)");
+      enAvanza = false;
+      digitalWrite(PIN_IN3, LOW);
+      digitalWrite(PIN_IN4, HIGH);
+      analogWrite(PIN_ENB, velocidadActual);
     } 
-    else if (comando == "LENTO") {
-      velocidad = 100; // ~40% de potencia
-      aplicarMovimiento();
-      Serial.println("-> Velocidad: LENTO (100)");
+    
+    // --- COMANDOS DE MODULACIÓN DE VELOCIDAD (PWM) ---
+    else if (request.indexOf("/LENTO") != -1) {
+      Serial.println("-> [VOZ] VELOCIDAD LENTA (PWM 140)");
+      velocidadActual = 140;
+      aplicarVelocidad();
     } 
-    else if (comando == "MEDIO") {
-      velocidad = 180; // ~70% de potencia
-      aplicarMovimiento();
-      Serial.println("-> Velocidad: MEDIO (180)");
+    else if (request.indexOf("/MEDIO") != -1) {
+      Serial.println("-> [VOZ] VELOCIDAD MEDIA (PWM 200)");
+      velocidadActual = 200;
+      aplicarVelocidad();
     } 
-    else if (comando == "RAPIDO") {
-      velocidad = 255; // 100% de potencia
-      aplicarMovimiento();
-      Serial.println("-> Velocidad: RÁPIDO (255)");
-    } 
-    else {
-      Serial.println("<!> Comando invalido. Usa: ADELANTE, RETROCEDE, PARA, LENTO, MEDIO, RAPIDO");
+    else if (request.indexOf("/RAPIDO") != -1) {
+      Serial.println("-> [VOZ] VELOCIDAD MAXIMA (PWM 255)");
+      velocidadActual = 255;
+      aplicarVelocidad();
     }
-  }
-}
 
-void aplicarMovimiento() {
-  if (estadoDireccion == "ADELANTE") {
-    digitalWrite(IN3, HIGH);
-    digitalWrite(IN4, LOW);
-    analogWrite(ENB, velocidad);
-  } 
-  else if (estadoDireccion == "RETROCEDE") {
-    digitalWrite(IN3, LOW);
-    digitalWrite(IN4, HIGH);
-    analogWrite(ENB, velocidad);
-  } 
-  else if (estadoDireccion == "PARA") {
-    digitalWrite(IN3, LOW);
-    digitalWrite(IN4, LOW);
-    analogWrite(ENB, 0);
+    // Respuesta HTTP para cerrar el socket rápidamente
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.println();
+    client.stop();
   }
 }
