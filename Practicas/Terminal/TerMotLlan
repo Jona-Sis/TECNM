@@ -1,0 +1,18 @@
+# Registro de Comunicación Serie (UART)
+
+En esta carpeta se registra la prueba de comunicación interactiva por el puerto serie entre la consola de comandos y el microcontrolador **Arduino UNO R4 WiFi**.
+
+## Configuración de la Terminal
+* **Velocidad de transmisión:** 115200 baudios
+* **Terminación de línea:** `Newline (\n)` / `Both NL & CR`
+* **Puerto de comunicación:** Serial / COM
+
+## Log de Comandos Ejecutados
+```text
+[INIT] Sistema de control inicializado a 115200 bps.
+[CMD] ADELANTE  --> Motor en sentido horario (100% PWM)
+[CMD] LENTO     --> Velocidad reducida (PWM: 100)
+[CMD] MEDIO     --> Velocidad media (PWM: 180)
+[CMD] RAPIDO    --> Velocidad máxima (PWM: 255)
+[CMD] RETROCEDE --> Motor en sentido antihorario (100% PWM)
+[CMD] PARA      --> Freno eléctrico activado (PWM: 0)
